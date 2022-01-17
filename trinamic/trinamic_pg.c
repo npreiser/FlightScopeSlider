@@ -84,12 +84,12 @@ void configureMotor(char motor) {
 int vstart = 0;
 int a1 = 100;
 int v1 = 100 ;
-int amax = 1000;
-int vmax = 3000;
+int amax = 5000; // 1000;
+int vmax = 500000; // 3000;   
 int dmax = 4700;
 int d1 = 1400;
 int vstop = 10;
-float revs = 0.5;
+float revs = 60; //0.5;
 
 void initMotorParams(char motor)
 {
@@ -103,6 +103,12 @@ void initMotorParams(char motor)
 	tmc5160_writeInt(motor, TMC5160_D1, d1);
 	tmc5160_writeInt(motor, TMC5160_VSTOP, vstop);
 	tmc5160_writeInt(motor, TMC5160_RAMPMODE, TMC5160_MODE_POSITION);
+
+    tmc5160_writeInt(motor, TMC5160_SWMODE, 0x03);
+
+	//TMC5160_XLATCH
+	// for homeing ,  set a 0 into exlatch,  then slowly go home... direction... 
+	// 
 }
 
 void gotoTarget(char motor, int targetPos, int wait)
@@ -163,13 +169,13 @@ int run_example()
 
 	//waitFor(0, 10);
 
-	int targetPos = (int)(revs * 51200.0);
+	int targetPos = (int)(revs * 51200.0);     ///  NOTE  51200 is the number of microsteps per rev. 
 	gotoTarget(MOTOR0, targetPos, 1);
 	printf("TMC5160 Position: %d\n", tmc5160_readInt(MOTOR0, TMC5160_XACTUAL));
 
 	delay(500);
 
-	//gotoTarget(MOTOR0, 0, 1);
+	gotoTarget(MOTOR0, 0, 1);
 	//printf("TMC5160 Position: %d\n", tmc5160_readInt(MOTOR0, TMC5160_XACTUAL));
 
 	disableMotorPower();

@@ -1,0 +1,1 @@
+28.06.2017: added multi-axis support for TMC4670, TMC4671, and TMC6630

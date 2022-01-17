@@ -1,0 +1,8 @@
+bin/
+__pycache__/
+lib/
+share/
+_*.so
+_*.py
+pyvenv.cfg
+*wrap.c

@@ -12,10 +12,14 @@ import sys
 import select
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from stepper import gohome,takesteps,ismanualmode,manualpositionleft,initIO,cleanupIO,goFarRightPostion,goFarLeftPostion
+# from stepper import gohome,takesteps,ismanualmode,manualpositionleft,initIO,cleanupIO,goFarRightPostion,goFarLeftPostion
+sys.path.insert(0, './trinamic')
+import trinamic_pg as pg
+import RPi.GPIO as GPIO
 
-
-
+# PIN DEFINITIONS 
+MODE = 27
+MANUAL_DIR = 22
 # setup file watcher
 class MyHandler(FileSystemEventHandler):
     
@@ -34,7 +38,28 @@ def callback():
     reload_config = True
     print("config.json file was modified*************************")
         
-  
+
+def initIO():
+    print('IO Initialization Start')
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(MODE, GPIO.IN)
+    GPIO.setup(MANUAL_DIR, GPIO.IN)
+    print('IO Initialization Complete')
+
+    #
+#
+def cleanupIO(): 
+    print('IO Cleanup started')
+    GPIO.cleanup() # run this just to make sure 
+#
+#
+def ismanualmode():
+    ismanual = GPIO.input(MODE)
+    return not ismanual
+#
+def manualpositionleft():
+    posleft = GPIO.input(MANUAL_DIR)
+    return not posleft  
 
 
 current_tray_position = 0 
@@ -73,16 +98,20 @@ if __name__ == "__main__":
 
     event_handler = MyHandler(callback)
     observer = Observer()
-    observer.schedule(event_handler, path='/home/pi/A_localGit/FlightScopeEyeball', recursive=False)
+    observer.schedule(event_handler, path='/home/pi/A_localGit/FlightScopeSlider', recursive=False)
     observer.start()
 
+    # init hardware
     initIO()
+    pg.initDriver()
+    pg.findHome()
+    pg.setNormalRunModeParams()
+
     # main loop
     modeswitch_debounce = 0
     positionswitch_debounce = 0
 
-    gohome()
-
+    
     MANUAL_MODE = ismanualmode()
     POSITION_LEFT = manualpositionleft()
     print("Manual Mode: %s" % MANUAL_MODE)
@@ -134,6 +163,7 @@ if __name__ == "__main__":
                 modename = "Auto"
             else:
                 gohome()
+                
                 modeswitch_debounce = 1000
 
             print("manual/auto  switched to:  %s " % modename)

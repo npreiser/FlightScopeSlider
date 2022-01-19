@@ -15,11 +15,11 @@ int vstart = 0;
 int a1 = 100;
 int v1 = 100;
 int amax = 5000; // 1000;
-int vmax = 5000; // 3000;
+int vmax = 50000; // 3000;
 int dmax = 4700;
 int d1 = 1400;
 int vstop = 10;
-float revs = 1; // 60; //0.5;
+float revs = 20; // 60; //0.5;
 
 #define MAX_REVOLUTIONS 20			 // this will be based on testing of system...
 #define NUMBER_OF_REGIONS 5			 //
@@ -125,7 +125,7 @@ void initMotorParams(char motor)
 	tmc5160_writeInt(motor, TMC5160_D1, d1);
 	tmc5160_writeInt(motor, TMC5160_VSTOP, vstop);
 	tmc5160_writeInt(motor, TMC5160_RAMPMODE, TMC5160_MODE_POSITION);
-	tmc5160_writeInt(motor, TMC5160_SWMODE, 0x03);
+	//tmc5160_writeInt(motor, TMC5160_SWMODE, 0x03);
 }
 
 void initMotorParamsHoming(char motor)
@@ -202,31 +202,6 @@ int tune_max_speed()
 	initMotorParams(MOTOR0);
 }
 
-int run_example()
-{
-	if (setupGpio() == 1)
-	{
-		return 1;
-	}
-	configureMotor(MOTOR0);
-
-	initMotorParams(MOTOR0);
-
-	int targetPos = (int)(revs * 51200.0); ///  NOTE  51200 is the number of microsteps per rev.
-	gotoTarget(MOTOR0, targetPos, 1);
-	printf("TMC5160 Position: %d\n", tmc5160_readInt(MOTOR0, TMC5160_XACTUAL));
-
-	delay(500);
-
-	gotoTarget(MOTOR0, 0, 1);
-	//printf("TMC5160 Position: %d\n", tmc5160_readInt(MOTOR0, TMC5160_XACTUAL));
-
-	disableMotorPower();
-
-	shutdown();
-
-	return 0;
-}
 
 // public routines start
 // ******************************************************
@@ -316,17 +291,43 @@ int wiggle_test()
 	gotoRegion(0);
 }
 
+
+
+int run_example()
+{
+	if (setupGpio() == 1)
+	{
+		return 1;
+	}
+	configureMotor(MOTOR0);
+	initMotorParams(MOTOR0);
+
+	int targetPos = (int)(revs * 51200.0); ///  NOTE  51200 is the number of microsteps per rev.
+	gotoTarget(MOTOR0, targetPos, 1);
+	printf("TMC5160 Position: %d\n", tmc5160_readInt(MOTOR0, TMC5160_XACTUAL));
+
+	delay(500);
+
+	gotoTarget(MOTOR0, 0, 1);
+	//printf("TMC5160 Position: %d\n", tmc5160_readInt(MOTOR0, TMC5160_XACTUAL));
+
+	disableMotorPower();
+
+	shutdown();
+
+	return 0;
+}
 void main()
 {
+	//run_example();
 	initDriver();
 	setNormalRunModeParams();
-	printf("Init TMC5160 Position: %d\n", tmc5160_readInt(MOTOR0, TMC5160_XACTUAL));
-
+	//printf("Init TMC5160 Position: %d\n", tmc5160_readInt(MOTOR0, TMC5160_XACTUAL));
 
     gotoRegion(2);
 	//findHome();
-	//delay(2000);
-	//gotoRegion(1);
+	delay(2000);
+	gotoRegion(1);
 	//wiggle_test();
 
 	cleanupDriver();

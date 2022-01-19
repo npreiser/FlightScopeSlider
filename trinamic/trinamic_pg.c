@@ -104,7 +104,10 @@ void configureMotor(char motor)
 	tmc5160_writeInt(motor, TMC5160_CHOPCONF, 0x000100C3);
 
 	// IHOLD=8, IRUN=15 (max. current), IHOLDDELAY=6
-	tmc5160_writeInt(motor, TMC5160_IHOLD_IRUN, 0x00080F0A);
+	//tmc5160_writeInt(motor, TMC5160_IHOLD_IRUN, 0x00080F0A);
+
+	// ihold = 0,  irun 15 ,  ihold delay = 6
+	tmc5160_writeInt(motor, TMC5160_IHOLD_IRUN, 0x00080F01);
 
 	// TPOWERDOWN=10: Delay before power down in stand still
 	tmc5160_writeInt(motor, TMC5160_TPOWERDOWN, 0x0000000A);
@@ -125,7 +128,9 @@ void initMotorParams(char motor)
 	tmc5160_writeInt(motor, TMC5160_D1, d1);
 	tmc5160_writeInt(motor, TMC5160_VSTOP, vstop);
 	tmc5160_writeInt(motor, TMC5160_RAMPMODE, TMC5160_MODE_POSITION);
-	//tmc5160_writeInt(motor, TMC5160_SWMODE, 0x03);
+	tmc5160_writeInt(motor, TMC5160_SWMODE, 0x00);
+
+	
 }
 
 void initMotorParamsHoming(char motor)
@@ -321,14 +326,15 @@ void main()
 {
 	//run_example();
 	initDriver();
-	setNormalRunModeParams();
+	//setNormalRunModeParams();
 	//printf("Init TMC5160 Position: %d\n", tmc5160_readInt(MOTOR0, TMC5160_XACTUAL));
 
-    gotoRegion(2);
-	//findHome();
+     // gotoRegion(2);
+	findHome();
+	
 	delay(2000);
-	gotoRegion(1);
+	//gotoRegion(1);
 	//wiggle_test();
 
-	cleanupDriver();
+	//cleanupDriver();
 }

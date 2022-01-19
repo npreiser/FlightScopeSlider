@@ -64,8 +64,8 @@ def manualpositionleft():
 
 current_tray_position = 0 
 
-HEADLESS = False
-TX_DATA = True  # set to enable/disable tranmsion of data.
+HEADLESS = True
+TX_DATA = False  # set to enable/disable tranmsion of data.
 # TARGET_IP_ADDR = '192.168.1.73'
 TARGET_IP_ADDR = 'localhost'
 
@@ -106,8 +106,10 @@ if __name__ == "__main__":
     pg.initDriver()
     pg.findHome()
     pg.setNormalRunModeParams()
+    # pg.gotoRegion(2)
 
     # main loop
+    
     modeswitch_debounce = 0
     positionswitch_debounce = 0
 
@@ -162,7 +164,8 @@ if __name__ == "__main__":
                 modeswitch_debounce = 2
                 modename = "Auto"
             else:
-                gohome()
+                pg.findHome()  # GO HOME when switched to manual mode
+               
                 
                 modeswitch_debounce = 1000
 
@@ -180,10 +183,10 @@ if __name__ == "__main__":
                     positionswitch_debounce = 1000
                     POSITION_LEFT = temppos
                     if POSITION_LEFT == True:
-                        goFarLeftPostion()
+                        pg.gotoRegion(4)      
                         print("Moved manual left position")
                     else:
-                        goFarRightPostion()
+                        pg.gotoRegion(0)
                         print("Moved manual right position")
 
         else: # IF AUTO MODE ***********************************************
@@ -192,7 +195,7 @@ if __name__ == "__main__":
             if reload_config == True:
                 print("loading config")
                 reload_config = False
-                f = open('/home/pi/A_localGit/FlightScopeEyeball/config.json')
+                f = open('/home/pi/A_localGit/FlightScopeSlider/config.json')
                 mycfg = json.load(f)
                 f.close()
                 xstart=mycfg['crop_x_start']
@@ -321,6 +324,8 @@ if __name__ == "__main__":
         
     # cleanup the camera and close any open windows
     # observer.join()
+    pg.cleanupDriver()
+    
     cleanupIO()
     observer.stop()
     camera.release()

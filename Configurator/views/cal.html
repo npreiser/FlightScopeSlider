@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset="UTF-8">
+    <!--meta name="viewport" content="width=device-width, initial-scale=1"-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>FlightScopeTrack Calibration</title>
+    <script src="javascripts/helper.js"></script>
+    <script src="javascripts/jquery-3.2.1.min.js"></script>
+    <link rel="stylesheet" href="stylesheets/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    <script src="javascripts/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script>
+    <style>
+        body {font-family: Arial;}
+
+        .settingsheader {
+            height: 100px;
+            width: 100%;
+        }
+
+        .header_col {
+            height: 100px;
+            width: 50%;
+            font-size: large;
+            display: inline-block;
+        }
+        .settingsbody {
+            height: 200px;
+
+        }
+        .settings_row2 {
+            height: 100px;
+
+        }
+        .top-buffer { margin-top:12px; }
+
+         /* this i to make the tab at the top , very slim height */
+        .nav-tabs > li > a
+        {
+            /* adjust padding for height*/
+            padding-top: 3px;
+            padding-bottom: 3px;
+        }
+
+    </style>
+</head>
+<body onload="init2()">
+    <section>
+        <div class="container">
+            <div class=" row">
+              <div id="tableholder"></div>
+        </div>
+
+    </section>
+
+
+<section>
+    <div class="container">
+        <div class=" row">
+            <div class="col-xs-1">
+            <label for="cropys">Crop_Y_Start:</label>
+            <input type="text" class="form-control" id="cropys">
+            </div>
+            <div class="col-xs-1">
+            <label for="cropye">Crop_Y_End:</label>
+            <input type="text" class="form-control" id="cropye">
+            </div>
+
+            <div class="col-xs-1">
+                <label for="cropxs">Crop_X_Start:</label>
+                <input type="text" class="form-control" id="cropxs">
+            </div>
+            <div class="col-xs-2">
+                <label for="cropxe">Crop_X_End:</label>
+                <input type="text" class="form-control" id="cropxe">
+            </div>
+        </div>
+        <div class="top-buffer row"></div>
+        <div class="top-buffer row"></div>
+
+        <div class="top-buffer row">
+            <div class="checkbox w-25">
+                <label><input id= "fbc" type="checkbox" value="">Filter by Color</label>
+            </div>
+            <div class="col-xs-2">
+                <label for="blobcolor">Blob Color:</label>
+                <input type="text" class="form-control" id="blobcolor">
+            </div>
+            <div class="col-xs-2">
+                <label for="mincolor">minColor:</label>
+                <input type="text" class="form-control" id="mincolor">
+            </div>
+
+            <div class="col-xs-2">
+                <label for="maxcolor">maxColor:</label>
+                <input type="text" class="form-control" id="maxcolor">
+            </div>
+
+        </div>
+
+        <div class="top-buffer row"></div>
+        <div class="top-buffer row"></div>
+
+        <div class="top-buffer row">
+            <div class="checkbox w-25">
+                <label><input id = "fba" type="checkbox" value="">Filter by Area</label>
+            </div>
+            <div class="col-xs-2">
+                <label for="minarea">Min Area:</label>
+                <input type="text" class="form-control" id="minarea">
+            </div>
+            <div class="col-xs-2">
+                <label for="maxarea">Max Area:</label>
+                <input type="text" class="form-control" id="maxarea">
+            </div>
+
+        </div>
+
+        <div class="top-buffer row"></div>
+        <div class="top-buffer row"></div>
+
+        <div class="top-buffer row">
+            <div class="checkbox w-25">
+                <label><input id = "fbcir" type="checkbox" value="">Filter by Circularity</label>
+            </div>
+            <div class="col-xs-2">
+                <label for="mincircle">Min Circularity:</label>
+                <input type="text" class="form-control" id="mincircle">
+            </div>
+        </div>
+
+        <div class="top-buffer row"></div>
+        <div class="top-buffer row"></div>
+
+        <div class="top-buffer row">
+            <div class="checkbox w-25">
+                <label><input id = "fbcon" type="checkbox" value="">Filter by Convexity</label>
+            </div>
+            <div class="col-xs-2">
+                <label for="mincon">Min Convexity:</label>
+                <input type="text" class="form-control" id="mincon">
+            </div>
+            <div class="col-xs-2">
+                <label for="maxcon">Max Convexity:</label>
+                <input type="text" class="form-control" id="maxcon">
+            </div>
+        </div>
+
+        <div class="top-buffer row"></div>
+        <div class="top-buffer row"></div>
+
+        <div class="top-buffer row">
+            <div class="checkbox w-25">
+                <label><input id = "fbi" type="checkbox" value="">Filter by Inertia</label>
+            </div>
+            <div class="col-xs-2">
+                <label for="mini">Min Inertia Ratio:</label>
+                <input type="text" class="form-control" id="mini">
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+<section>
+    <button id="btnsave" type="button" class="btn btn-primary">Save Config</button>
+</section>
+</body>
+</html>

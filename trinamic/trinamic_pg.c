@@ -21,9 +21,9 @@ int d1 = 1400;
 int vstop = 10;
 float revs = 20; // 60; //0.5;
 
-#define MAX_REVOLUTIONS 20			 // this will be based on testing of system...
+#define MAX_REVOLUTIONS 40			 // this will be based on testing of system...
 #define NUMBER_OF_REGIONS 5			 //
-#define TOTAL_WIDTH_STEPS 51200 * 10 // this should be tuned per length of raild..
+#define TOTAL_WIDTH_STEPS 51200 * 43 // this should be tuned per length of raild..
 
 void resetMotorDrivers(char motor);
 
@@ -120,12 +120,12 @@ void initMotorParams(char motor)
 {
 	// Values for speed and acceleration
 	tmc5160_writeInt(motor, TMC5160_VSTART, vstart);
-	tmc5160_writeInt(motor, TMC5160_A1, a1);
-	tmc5160_writeInt(motor, TMC5160_V1, v1);
-	tmc5160_writeInt(motor, TMC5160_AMAX, amax);
-	tmc5160_writeInt(motor, TMC5160_VMAX, 200000);
-	tmc5160_writeInt(motor, TMC5160_DMAX, dmax);
-	tmc5160_writeInt(motor, TMC5160_D1, d1);
+	tmc5160_writeInt(motor, TMC5160_A1, 10000); //100
+	tmc5160_writeInt(motor, TMC5160_V1, 200000);//100
+	tmc5160_writeInt(motor, TMC5160_AMAX, 10000);  //5000
+	tmc5160_writeInt(motor, TMC5160_VMAX, 600000);
+	tmc5160_writeInt(motor, TMC5160_DMAX, 10000);
+	tmc5160_writeInt(motor, TMC5160_D1, 10000);
 	tmc5160_writeInt(motor, TMC5160_VSTOP, vstop);
 	tmc5160_writeInt(motor, TMC5160_RAMPMODE, TMC5160_MODE_POSITION);
 	tmc5160_writeInt(motor, TMC5160_SWMODE, 0x00);
@@ -140,12 +140,14 @@ void initMotorParamsHoming(char motor)
 	tmc5160_writeInt(motor, TMC5160_A1, a1);
 	tmc5160_writeInt(motor, TMC5160_V1, v1);
 	tmc5160_writeInt(motor, TMC5160_AMAX, amax);
-	tmc5160_writeInt(motor, TMC5160_VMAX, 20000);
-	tmc5160_writeInt(motor, TMC5160_DMAX, dmax);
-	tmc5160_writeInt(motor, TMC5160_D1, d1);
+	tmc5160_writeInt(motor, TMC5160_VMAX, 200000);
+	tmc5160_writeInt(motor, TMC5160_DMAX, 20000); //4700
+	tmc5160_writeInt(motor, TMC5160_D1, 20000);
 	tmc5160_writeInt(motor, TMC5160_VSTOP, vstop);
 	tmc5160_writeInt(motor, TMC5160_RAMPMODE, TMC5160_MODE_POSITION);
-	tmc5160_writeInt(motor, TMC5160_SWMODE, 0x90A); //enable  right, and flip polarity, for pull up. set xlatch up
+	
+	//tmc5160_writeInt(motor, TMC5160_SWMODE, 0x90A); //enable  Right, and flip polarity, for pull up. set xlatch up
+	tmc5160_writeInt(motor, TMC5160_SWMODE, 0x0845); //enable  left, and flip polarity, for pull up. set xlatch up
 	tmc5160_writeInt(motor, TMC5160_XLATCH, 0x00);	// set xlatch as point 0
 }
 
@@ -243,7 +245,7 @@ int findHome()
 	initMotorParamsHoming(MOTOR0);
 	int targetPos = (int)(MAX_REVOLUTIONS * 51200.0); ///  NOTE  51200 is the number of microsteps per rev.
 
-	gotoTargetHome(MOTOR0, targetPos); // go right until velocity == 0,
+	gotoTargetHome(MOTOR0, -targetPos); // go right until velocity == 0,
 
 	printf("TMC5160 Position: %d\n", tmc5160_readInt(MOTOR0, TMC5160_XACTUAL));
 	printf("TMC5160 Xlatch: %d\n", tmc5160_readInt(MOTOR0, TMC5160_XLATCH));
@@ -275,7 +277,7 @@ void gotoRegion(int targetRegion)
 		// total width in # of steps .
 		int stepsPerRegion = TOTAL_WIDTH_STEPS / NUMBER_OF_REGIONS;
 
-		tpos = -1 * (stepsPerRegion * region);
+		tpos = (stepsPerRegion * region);
 	}
 
     printf("going to target position: %d\n", tpos);
@@ -326,15 +328,25 @@ void main()
 {
 	//run_example();
 	initDriver();
-	//setNormalRunModeParams();
+
+	findHome();
+
+	delay(2000);
+	setNormalRunModeParams();
 	//printf("Init TMC5160 Position: %d\n", tmc5160_readInt(MOTOR0, TMC5160_XACTUAL));
 
-     // gotoRegion(2);
-	findHome();
+    delay(2000);
+    gotoRegion(4);
+	//delay(2000);
+	//gotoRegion(0);
+	//delay(2000);
+   // gotoRegion(4);
+	//delay(2000);
+	//gotoRegion(0);
 	
-	delay(2000);
-	//gotoRegion(1);
+	//delay(2000);
+	//gotoRegion(3);
 	//wiggle_test();
 
-	//cleanupDriver();
+	cleanupDriver();
 }

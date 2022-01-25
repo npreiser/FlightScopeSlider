@@ -20,7 +20,29 @@ import RPi.GPIO as GPIO
 # PIN DEFINITIONS 
 MODE = 27
 MANUAL_DIR = 22
+
+LED_1 = 26
+
+
+
+current_tray_position = 0 
+
+HEADLESS = True
+TX_DATA = False  # set to enable/disable tranmsion of data.
+# TARGET_IP_ADDR = '192.168.1.73'
+TARGET_IP_ADDR = 'localhost'
+
+# flag to reload config
+reload_config = True
 # setup file watcher
+
+led1_checkcnt = 0
+#led1_check_threshold = 100000
+#led1_state = False
+global_keypoint_count = 2
+led1_time_index = 0
+
+
 class MyHandler(FileSystemEventHandler):
     
     def __init__(self, callback):
@@ -44,6 +66,7 @@ def initIO():
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(MODE, GPIO.IN)
     GPIO.setup(MANUAL_DIR, GPIO.IN)
+    GPIO.setup(LED_1, GPIO.OUT)
     print('IO Initialization Complete')
 
     #
@@ -61,16 +84,40 @@ def manualpositionleft():
     posleft = GPIO.input(MANUAL_DIR)
     return not posleft  
 
+def blinkLED1():
+    led1_keyppoint_0 = [False,False,False,False,False,False,False,False,False,False]
+    led1_keyppoint_1 = [False,False,False,False,False,False,False,False,False,True]
+    led1_keyppoint_2 = [False,False,False,False,False,False,False,True,False,True]
 
-current_tray_position = 0 
+    global led1_state
+    global led1_checkcnt
+    global led1_check_threshold
+    global led1_time_index
 
-HEADLESS = True
-TX_DATA = False  # set to enable/disable tranmsion of data.
-# TARGET_IP_ADDR = '192.168.1.73'
-TARGET_IP_ADDR = 'localhost'
+    led1_checkcnt = led1_checkcnt + 1
+    if led1_checkcnt > 20000:
+        led1_checkcnt = 0
+        # move to next time index 
+        led1_time_index = led1_time_index + 1
+        if led1_time_index > 9:  
+            led1_time_index = 0
+        
+        state = False
+        if global_keypoint_count == 1:
+            state = led1_keyppoint_1[led1_time_index]
+           
+        elif global_keypoint_count == 2:
+            state = led1_keyppoint_2[led1_time_index]
+            
+        #if state == True:
+        #    print('led 1 off')
+        #else:
+        #    print('led 1 on')
+        #    led1_state = True
 
-# flag to reload config
-reload_config = True
+        GPIO.output(LED_1, state)
+
+
 
 # # construct the argument parse and parse the arguments
 #ap = argparse.ArgumentParser()
@@ -128,6 +175,9 @@ if __name__ == "__main__":
     mycfg = {}
     loopcount = 0
 
+    keypoint_loopcnt = 0
+    keypoint_counts = [0,0,0,0,0,0,0,0,0,0]
+
     while True:
 
         # if select.select([sys.stdin,],[],[],0.0)[0]:
@@ -143,7 +193,7 @@ if __name__ == "__main__":
 
         # else:
             # print ("No data")
-       
+        blinkLED1()
 
         loopcount += 1
         if loopcount > 500000:
@@ -215,6 +265,8 @@ if __name__ == "__main__":
                 params.minArea = mycfg['minArea']
                 params.filterByCircularity = mycfg['filterByCircularity']
                 params.minCircularity = mycfg['minCircularity']
+                params.maxCircularity = 1
+
                 params.filterByConvexity = mycfg['filterByConvexity']
                 params.minConvexity = mycfg['minConvexity']
                 params.maxConvexity = mycfg['maxConvexity']
@@ -236,10 +288,31 @@ if __name__ == "__main__":
 
             cropped = resized[ystart:yend, xstart:xend]
             
+            # brt = -40
+            # cropped[cropped < 255-brt] += brt
+            #  hough circles ###################################################################
+            
+            # gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
+            # img = cv2.medianBlur(gray, 5)
+            # cimg = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+            #                               #  img,  method    dp,  min Dist,   p1/p2 canny function params,    
+            # circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT,1, 100, param1=100,param2=300,minRadius=1,maxRadius=50)
+
+            # if circles is not None:
+            #     # print("got hough circles : ")             
+
+            #     circles = np.uint16(np.around(circles))
+            #     for i in circles[0, :]:
+            #         cv2.circle(cropped, (i[0], i[1]), i[2], (0,255,0), 2)
+
+            # END HOUGH CIRCLES ###################################################
+            
             (B, G, R) = cv2.split(cropped)
 
             detector = cv2.SimpleBlobDetector_create(params)
-            # Detect blobs.
+            # Detect blobs.,  only on Blue channel 
+            gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
+            # keypoints = detector.detect(gray)
             keypoints = detector.detect(B)
             # if more than 0 points detected.       
             if len(keypoints) > 0:
@@ -253,7 +326,17 @@ if __name__ == "__main__":
                     obj['size'] = format(i.size,".2f")
                     holder.append(obj)
                     # print(format(i.pt[0],".2f"))
-                    
+                  # Questions
+                  # has kp shown up on the last x number of samples.. in a row,  
+                  # is the kp moving,  if its the same kp... 
+
+                    # average number of points.. 
+                # keypoint_counts.pop(0)
+                # keypoint_counts.append(len(keypoints))    
+                # keypoint_loopcnt = keypoint_loopcnt + 1
+                # if keypoint_loopcnt > 20:
+                #     keypoint_loopcnt = 0
+                #     print("keypoint count avg: %d" % (sum(keypoint_counts)/len(keypoint_counts)))        
                 #print(data)
                 # print(len(keypoints))
                 
@@ -267,48 +350,8 @@ if __name__ == "__main__":
                         print("http error" ) 
                 
             
-                #  office cord .  535  ... 345 .... 175
-                # 300 is dead center... +- 200 to each side. range = 100 : 300: 500
-                # 
-                # forward() # step forward... fixed ammount for now. 
-            #  move = False
-                """
-                STEP_FACTOR = 100  # how many steps per pixel... 
-                delta = 0
-                # its inverted..  increase in pixel position.. move revers(ccw) .. 
-                # map home(step = 0) to 535 x ball position.. 
-                # take position and sub 535. 
-                offset = 37
-                temp = int(500+offset - i.pt[0])   # calc target position 
-                direction = "R"
-                
-                if current_tray_position != temp:
-                    print("target position %d" % temp) 
-                
-                if temp > current_tray_position:
-                    delta = int(temp - current_tray_position)
-                    direction = "F"
-                elif temp < current_tray_position:   
-                    delta = int(current_tray_position - temp)
-                    direction = "R"
-                else:
-                    print("No need to move")
-                
-                
-                if delta > 0:
-                    print("delta: "+format(delta,".2f") + "   dir: " + direction) 
-                    if direction == "R":
-                        stepreverse(delta*STEP_FACTOR)
-                        print("moved backward: ")
-                        current_tray_position -= delta
-                        print("current tray pos: %d" % (current_tray_position))
-                    elif direction == "F":
-                        stepforward(delta*STEP_FACTOR)
-                        print("moved forward: ")
-                        current_tray_position += delta
-                        print("current tray pos: %d" % (current_tray_position))
-                """               
-
+               
+           
             # Draw detected blobs as red circles.
             # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle corresponds to the size of blob
             if HEADLESS == False:

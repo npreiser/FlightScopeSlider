@@ -12,20 +12,16 @@ import sys
 import select
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-# from stepper import gohome,takesteps,ismanualmode,manualpositionleft,initIO,cleanupIO,goFarRightPostion,goFarLeftPostion
-sys.path.insert(0, './trinamic')
+sys.path.insert(0, './trinamic')  # create path to trinamic driver
 import trinamic_pg as pg
 import RPi.GPIO as GPIO
 
 # PIN DEFINITIONS 
-MODE = 27
-MANUAL_DIR = 22
+MODE = 27 # toggle switch for manual / auto mode
+MANUAL_DIR = 22  # manual mode side   left/ right
+LED_1 = 26  # led for indicating how many balls are present in view. 
 
-LED_1 = 26
-
-
-
-current_tray_position = 0 
+# current_tray_position = 0 
 
 HEADLESS = True
 TX_DATA = False  # set to enable/disable tranmsion of data.
@@ -34,13 +30,13 @@ TARGET_IP_ADDR = 'localhost'
 
 # flag to reload config
 reload_config = True
-# setup file watcher
+led1_checkcnt = 0 # counter to check led state
+global_keypoint_count = 2  # global keypoint counter updaed on every capture.
+led1_time_index = 0  # where in the array we are at.. 
 
-led1_checkcnt = 0
 #led1_check_threshold = 100000
 #led1_state = False
-global_keypoint_count = 2
-led1_time_index = 0
+
 
 
 class MyHandler(FileSystemEventHandler):
@@ -88,10 +84,11 @@ def blinkLED1():
     led1_keyppoint_0 = [False,False,False,False,False,False,False,False,False,False]
     led1_keyppoint_1 = [False,False,False,False,False,False,False,False,False,True]
     led1_keyppoint_2 = [False,False,False,False,False,False,False,True,False,True]
+    led1_keyppoint_other = [False,False,False,False,False,True,False,True,False,True]
 
-    global led1_state
+    # global led1_state
     global led1_checkcnt
-    global led1_check_threshold
+    # global led1_check_threshold
     global led1_time_index
 
     led1_checkcnt = led1_checkcnt + 1
@@ -103,18 +100,15 @@ def blinkLED1():
             led1_time_index = 0
         
         state = False
-        if global_keypoint_count == 1:
-            state = led1_keyppoint_1[led1_time_index]
-           
+        if global_keypoint_count == 0:
+            state = led1_keyppoint_0[led1_time_index]   
+        elif global_keypoint_count == 1:
+            state = led1_keyppoint_1[led1_time_index]   
         elif global_keypoint_count == 2:
             state = led1_keyppoint_2[led1_time_index]
-            
-        #if state == True:
-        #    print('led 1 off')
-        #else:
-        #    print('led 1 on')
-        #    led1_state = True
-
+        elif global_keypoint_count > 2:
+            state = led1_keyppoint_other[led1_time_index]   
+        
         GPIO.output(LED_1, state)
 
 
@@ -177,6 +171,9 @@ if __name__ == "__main__":
 
     keypoint_loopcnt = 0
     keypoint_counts = [0,0,0,0,0,0,0,0,0,0]
+    settle_counter = 0
+    current_slide_region = 0
+    
 
     while True:
 
@@ -242,6 +239,12 @@ if __name__ == "__main__":
         else: # IF AUTO MODE ***********************************************
             # temp = ismanualmode()  # check if we are in manual mode 
            
+
+            # ALGO
+            # take framecapture, divide by 3...
+            # if single object in region  and is still, move slide to that region...start countdown..
+            # after countdown (5 sec) start over.. if region has changed,  move slide. ..
+            # repeate... 
             if reload_config == True:
                 print("loading config")
                 reload_config = False
@@ -314,7 +317,9 @@ if __name__ == "__main__":
             gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
             # keypoints = detector.detect(gray)
             keypoints = detector.detect(B)
-            # if more than 0 points detected.       
+            # if more than 0 points detected.  
+            global_keypoint_count = len(keypoints)  # set global count 
+
             if len(keypoints) > 0:
 
                 holder = []  # array of objects 
@@ -340,6 +345,40 @@ if __name__ == "__main__":
                 #print(data)
                 # print(len(keypoints))
                 
+                # MAIN LOGIC #############################################
+                if settle_counter > 0  # dec settle counter 
+                    settle_counter = settle_counter - 1
+
+                if len(keypoints) == 1 and settle_counter <= 0:  
+                     print("got 1 kp, processing cycle logic")
+                    settle_counter = 100000 # set settle counter 
+                    ball_x_position = keypoints[0].pt[0]
+                    ball_region = 0
+                    frame_width = xend-xstart
+                    region_size = frame_width/3
+                    r0_start = xstart
+                    r0_end = r0_start + region_size
+                    r1_start = r0_end + 1
+                    r1_end = r1_start + region_size
+                    r2_start = r1_end + 1
+                    r2_end = r2_start + region_size
+
+                    #what region is the keypoint in? 
+                    if ball_x_position >= r0_start and ball_x_position <= r0_end:
+                        ball_region = 0
+                    elif ball_x_position >= r1_start and ball_x_position <= r1_end:
+                        ball_region = 1
+                    elif ball_x_position >= r2_start and ball_x_position <= r2_end:
+                        ball_region = 2
+
+
+                    if current_slide_region != ball_region:  # if region has changed.. 
+                        # need to move the slide... 
+                        pg.gotoRegion(ball_region) 
+                        current_slide_region = ball_region
+                        
+
+                # END region LOGIC ##############################################
 
                 # send over data to node ##############################################
                 if TX_DATA == True:
@@ -350,8 +389,6 @@ if __name__ == "__main__":
                         print("http error" ) 
                 
             
-               
-           
             # Draw detected blobs as red circles.
             # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle corresponds to the size of blob
             if HEADLESS == False:
@@ -364,7 +401,6 @@ if __name__ == "__main__":
                 break
     
             
-        
     # cleanup the camera and close any open windows
     # observer.join()
     pg.cleanupDriver()

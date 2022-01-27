@@ -22,8 +22,8 @@ int vstop = 10;
 float revs = 20; // 60; //0.5;
 
 #define MAX_REVOLUTIONS 40			 // this will be based on testing of system...
-#define NUMBER_OF_REGIONS 5			 //
-#define TOTAL_WIDTH_STEPS 51200 * 43 // this should be tuned per length of raild..
+#define NUMBER_OF_REGIONS 3			 //
+#define TOTAL_WIDTH_STEPS 51200 * 51 // this should be tuned per length of raild..
 
 void resetMotorDrivers(char motor);
 
@@ -140,7 +140,7 @@ void initMotorParamsHoming(char motor)
 	tmc5160_writeInt(motor, TMC5160_A1, a1);
 	tmc5160_writeInt(motor, TMC5160_V1, v1);
 	tmc5160_writeInt(motor, TMC5160_AMAX, amax);
-	tmc5160_writeInt(motor, TMC5160_VMAX, 200000);
+	tmc5160_writeInt(motor, TMC5160_VMAX, 100000);
 	tmc5160_writeInt(motor, TMC5160_DMAX, 20000); //4700
 	tmc5160_writeInt(motor, TMC5160_D1, 20000);
 	tmc5160_writeInt(motor, TMC5160_VSTOP, vstop);

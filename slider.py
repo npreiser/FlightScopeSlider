@@ -23,7 +23,7 @@ LED_1 = 26  # led for indicating how many balls are present in view.
 
 # current_tray_position = 0 
 
-HEADLESS = True
+HEADLESS = False
 TX_DATA = False  # set to enable/disable tranmsion of data.
 # TARGET_IP_ADDR = '192.168.1.73'
 TARGET_IP_ADDR = 'localhost'
@@ -146,6 +146,7 @@ if __name__ == "__main__":
     initIO()
     pg.initDriver()
     pg.findHome()
+    current_slide_region = 0
     pg.setNormalRunModeParams()
     # pg.gotoRegion(2)
 
@@ -169,10 +170,10 @@ if __name__ == "__main__":
     mycfg = {}
     loopcount = 0
 
-    keypoint_loopcnt = 0
-    keypoint_counts = [0,0,0,0,0,0,0,0,0,0]
-    settle_counter = 0
-    current_slide_region = 0
+    # keypoint_loopcnt = 0
+    # keypoint_counts = [0,0,0,0,0,0,0,0,0,0]
+
+    settle_counter = 0   # used to create time between single kp measurments. 
     
 
     while True:
@@ -212,8 +213,8 @@ if __name__ == "__main__":
                 modename = "Auto"
             else:
                 pg.findHome()  # GO HOME when switched to manual mode
-               
-                
+                current_slide_region = 0
+                pg.setNormalRunModeParams() 
                 modeswitch_debounce = 1000
 
             print("manual/auto  switched to:  %s " % modename)
@@ -230,10 +231,12 @@ if __name__ == "__main__":
                     positionswitch_debounce = 1000
                     POSITION_LEFT = temppos
                     if POSITION_LEFT == True:
-                        pg.gotoRegion(4)      
+                        pg.gotoRegion(2) 
+                        current_slide_region = 2     
                         print("Moved manual left position")
                     else:
                         pg.gotoRegion(0)
+                        current_slide_region = 0
                         print("Moved manual right position")
 
         else: # IF AUTO MODE ***********************************************
@@ -320,6 +323,16 @@ if __name__ == "__main__":
             # if more than 0 points detected.  
             global_keypoint_count = len(keypoints)  # set global count 
 
+            # calc regions now 
+            frame_width = xend-xstart
+            region_size = int(frame_width/3)
+            r0_start = 0
+            r0_end = r0_start + region_size
+            r1_start = r0_end + 1
+            r1_end = r1_start + region_size
+            r2_start = r1_end + 1
+            r2_end = r2_start + region_size
+
             if len(keypoints) > 0:
 
                 holder = []  # array of objects 
@@ -346,22 +359,15 @@ if __name__ == "__main__":
                 # print(len(keypoints))
                 
                 # MAIN LOGIC #############################################
-                if settle_counter > 0  # dec settle counter 
+                if settle_counter > 0:  # dec settle counter 
                     settle_counter = settle_counter - 1
 
                 if len(keypoints) == 1 and settle_counter <= 0:  
-                     print("got 1 kp, processing cycle logic")
-                    settle_counter = 100000 # set settle counter 
+                    print("got 1 kp, processing cycle logic")
+                    settle_counter = 40 # set settle counter 
                     ball_x_position = keypoints[0].pt[0]
                     ball_region = 0
-                    frame_width = xend-xstart
-                    region_size = frame_width/3
-                    r0_start = xstart
-                    r0_end = r0_start + region_size
-                    r1_start = r0_end + 1
-                    r1_end = r1_start + region_size
-                    r2_start = r1_end + 1
-                    r2_end = r2_start + region_size
+                    
 
                     #what region is the keypoint in? 
                     if ball_x_position >= r0_start and ball_x_position <= r0_end:
@@ -374,8 +380,10 @@ if __name__ == "__main__":
 
                     if current_slide_region != ball_region:  # if region has changed.. 
                         # need to move the slide... 
+                        print("ball has moved to region  %d " % ball_region)
                         pg.gotoRegion(ball_region) 
                         current_slide_region = ball_region
+                        settle_counter = 80
                         
 
                 # END region LOGIC ##############################################
@@ -393,7 +401,15 @@ if __name__ == "__main__":
             # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle corresponds to the size of blob
             if HEADLESS == False:
                 im_with_keypoints = cv2.drawKeypoints(cropped, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-                cv2.imshow("Keypoints", im_with_keypoints)    # Show keypoints
+                
+                im_with_keypoints = cv2.line(im_with_keypoints, (r0_start, 10), (r0_start, 40), (0, 255, 0), thickness=1)
+                im_with_keypoints = cv2.line(im_with_keypoints, (r1_start, 10), (r1_start, 40), (0, 255, 0), thickness=1)
+                im_with_keypoints = cv2.line(im_with_keypoints, (r2_start, 10), (r2_start, 40), (0, 255, 0), thickness=1)
+                im_with_keypoints = cv2.line(im_with_keypoints, (r2_end, 10), (r2_end, 40), (0, 255, 0), thickness=1)
+               
+                
+                cv2.imshow("Keypoints", im_with_keypoints)   
+              #   cv2.imshow("Keypoints", im_with_keypoints)    # Show keypoints
         
             key = cv2.waitKey(1) & 0xFF
             # if the 'q' key is pressed, stop the loop

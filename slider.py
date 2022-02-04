@@ -12,7 +12,9 @@ import sys
 import select
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-sys.path.insert(0, './trinamic')  # create path to trinamic driver
+
+sys.path.insert(0,'/home/pi/A_localGit/FlightScopeSlider/trinamic')
+# sys.path.insert(0, './trinamic')  # create path to trinamic driver
 import trinamic_pg as pg
 import RPi.GPIO as GPIO
 
@@ -23,17 +25,18 @@ LED_1 = 26  # led for indicating how many balls are present in view.
 
 # current_tray_position = 0 
 
-HEADLESS = False
-TX_DATA = False  # set to enable/disable tranmsion of data.
+HEADLESS = True
+TX_DATA = True  # set to enable/disable tranmsion of data.
 # TARGET_IP_ADDR = '192.168.1.73'
 TARGET_IP_ADDR = 'localhost'
 
 # flag to reload config
 reload_config = True
 led1_checkcnt = 0 # counter to check led state
-global_keypoint_count = 2  # global keypoint counter updaed on every capture.
+global_keypoint_count = 0  # global keypoint counter updaed on every capture.
 led1_time_index = 0  # where in the array we are at.. 
 
+current_slide_region = 0
 #led1_check_threshold = 100000
 #led1_state = False
 
@@ -111,6 +114,37 @@ def blinkLED1():
         
         GPIO.output(LED_1, state)
 
+def keypointMatches(lastpoint, thispoint):
+    # bounderies
+    # format(i.pt[0],".2f")
+    min_x = lastpoint.pt[0] - 2
+   #  min_x = lastpoint['x'] - 2.0
+    max_x = lastpoint.pt[0] + 2.0
+    min_y = lastpoint.pt[1] - 2
+    max_y = lastpoint.pt[1] + 2
+    min_size = lastpoint.size - 2
+    max_size = lastpoint.size + 2
+ 
+    if thispoint.pt[0] <= max_x and thispoint.pt[0] >= min_x:  #x location 
+        if thispoint.pt[1] <= max_y and thispoint.pt[1] >= min_y:  # Y location
+            if thispoint.size <= max_size and thispoint.size >= min_size:  # Y location
+                return True
+
+    return False
+
+
+
+def goToManualPosition(posleft):
+    global current_slide_region
+
+    if posleft == True:
+        pg.gotoRegion(2) 
+        current_slide_region = 2     
+        print("Moved manual left position")
+    else:
+        pg.gotoRegion(0)
+        current_slide_region = 0
+        print("Moved manual right position")
 
 
 # # construct the argument parse and parse the arguments
@@ -146,7 +180,6 @@ if __name__ == "__main__":
     initIO()
     pg.initDriver()
     pg.findHome()
-    current_slide_region = 0
     pg.setNormalRunModeParams()
     # pg.gotoRegion(2)
 
@@ -155,12 +188,17 @@ if __name__ == "__main__":
     modeswitch_debounce = 0
     positionswitch_debounce = 0
 
-    
     MANUAL_MODE = ismanualmode()
     POSITION_LEFT = manualpositionleft()
-    print("Manual Mode: %s" % MANUAL_MODE)
-    print("MM Position Left: %s" % POSITION_LEFT)
+    
+    print("Mode: %s" % ("Auto", "Manual")[MANUAL_MODE])
+    print("MM Position: %s" % ("Right", "Left")[POSITION_LEFT])
 
+    # the slide is now at home (right), 
+    # if mm pos is left, move it to the left on boot. 
+
+    if MANUAL_MODE == True and POSITION_LEFT == True:
+         goToManualPosition(POSITION_LEFT)
 
     xstart=0
     xend=600
@@ -170,33 +208,20 @@ if __name__ == "__main__":
     mycfg = {}
     loopcount = 0
 
-    # keypoint_loopcnt = 0
-    # keypoint_counts = [0,0,0,0,0,0,0,0,0,0]
+    capture_img_interval = 0
 
+    last_single_keypoint = None  # storepoint to compare the last keypoint to.
+    single_keypoint_match_count = 0 # count how many time we have a close match on a point,
     settle_counter = 0   # used to create time between single kp measurments. 
     
-
     while True:
 
-        # if select.select([sys.stdin,],[],[],0.0)[0]:
-            # print("Have data!")
-        #     cnt = 0
-            # for line in sys.stdin:
-            #     cnt += 1
-            #     print("got line : %s "% line)
-            #     print(cnt)
-            #     line = str(line)
-            #     if 'config' in line:
-            #         reload_config = True
-
-        # else:
-            # print ("No data")
         blinkLED1()
 
         loopcount += 1
         if loopcount > 500000:
             loopcount = 0
-            print("manual/auto :  %s " % MANUAL_MODE)
+            # print("manual/auto :  %s " % MANUAL_MODE)
         # check for mode switch (manual vs auto) 
         if modeswitch_debounce > 0:
             modeswitch_debounce -= 1
@@ -207,17 +232,18 @@ if __name__ == "__main__":
 
         if temp != MANUAL_MODE and modeswitch_debounce <= 0: # if its changed... 
             MANUAL_MODE = temp
-            modename = "Manual"
             if MANUAL_MODE == False:
                 modeswitch_debounce = 2
-                modename = "Auto"
             else:
-                pg.findHome()  # GO HOME when switched to manual mode
-                current_slide_region = 0
-                pg.setNormalRunModeParams() 
+                 # Go to switch position when going to manual. 
+                goToManualPosition(POSITION_LEFT)
                 modeswitch_debounce = 1000
 
-            print("manual/auto  switched to:  %s " % modename)
+                if HEADLESS == False:
+                    cv2.destroyAllWindows() # added to close show window, may need headless. 
+
+            print("Mode Switched To: %s" % ("Auto", "Manual")[MANUAL_MODE])
+           #  print("manual/auto  switched to:  %s " % modename)
 
         # check for manual postion change 
         if MANUAL_MODE == True: # if in manual mode, 
@@ -230,17 +256,10 @@ if __name__ == "__main__":
                 if temppos != POSITION_LEFT and positionswitch_debounce <= 0:
                     positionswitch_debounce = 1000
                     POSITION_LEFT = temppos
-                    if POSITION_LEFT == True:
-                        pg.gotoRegion(2) 
-                        current_slide_region = 2     
-                        print("Moved manual left position")
-                    else:
-                        pg.gotoRegion(0)
-                        current_slide_region = 0
-                        print("Moved manual right position")
+                    goToManualPosition(POSITION_LEFT)
 
         else: # IF AUTO MODE ***********************************************
-            # temp = ismanualmode()  # check if we are in manual mode 
+            POSITION_LEFT = manualpositionleft()  # added 1/28,  always update this when in auto in case we switch back to manual 
            
 
             # ALGO
@@ -279,7 +298,8 @@ if __name__ == "__main__":
                 params.filterByInertia = mycfg['filterByInertia']
                 params.minInertiaRatio = mycfg['minInertiaRatio']
                 # added 1/1/21 cleanup 
-                cv2.destroyAllWindows()
+                if HEADLESS == False:
+                    cv2.destroyAllWindows()
 
 
             # grab the current frame
@@ -294,25 +314,7 @@ if __name__ == "__main__":
 
             cropped = resized[ystart:yend, xstart:xend]
             
-            # brt = -40
-            # cropped[cropped < 255-brt] += brt
-            #  hough circles ###################################################################
-            
-            # gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
-            # img = cv2.medianBlur(gray, 5)
-            # cimg = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-            #                               #  img,  method    dp,  min Dist,   p1/p2 canny function params,    
-            # circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT,1, 100, param1=100,param2=300,minRadius=1,maxRadius=50)
-
-            # if circles is not None:
-            #     # print("got hough circles : ")             
-
-            #     circles = np.uint16(np.around(circles))
-            #     for i in circles[0, :]:
-            #         cv2.circle(cropped, (i[0], i[1]), i[2], (0,255,0), 2)
-
-            # END HOUGH CIRCLES ###################################################
-            
+           
             (B, G, R) = cv2.split(cropped)
 
             detector = cv2.SimpleBlobDetector_create(params)
@@ -333,6 +335,8 @@ if __name__ == "__main__":
             r2_start = r1_end + 1
             r2_end = r2_start + region_size
 
+            capture_image = False
+
             if len(keypoints) > 0:
 
                 holder = []  # array of objects 
@@ -343,7 +347,7 @@ if __name__ == "__main__":
                     obj['y'] = format(i.pt[1],".2f")
                     obj['size'] = format(i.size,".2f")
                     holder.append(obj)
-                    # print(format(i.pt[0],".2f"))
+                   
                   # Questions
                   # has kp shown up on the last x number of samples.. in a row,  
                   # is the kp moving,  if its the same kp... 
@@ -358,12 +362,36 @@ if __name__ == "__main__":
                 #print(data)
                 # print(len(keypoints))
                 
+            
                 # MAIN LOGIC #############################################
                 if settle_counter > 0:  # dec settle counter 
                     settle_counter = settle_counter - 1
 
-                if len(keypoints) == 1 and settle_counter <= 0:  
-                    print("got 1 kp, processing cycle logic")
+                if len(keypoints) == 1:
+                    # y = json.dumps(holder[0])
+                    # print(y)
+                    # compare to last one, if clode inc counter. 
+                    if last_single_keypoint == None:
+                        last_single_keypoint = keypoints[0]
+                        single_keypoint_match_count = 0
+                    else: 
+                        if keypointMatches(last_single_keypoint, keypoints[0]) == True:
+                            single_keypoint_match_count = single_keypoint_match_count + 1  # inc match count 
+                        else:
+                            single_keypoint_match_count = 0
+
+                    last_single_keypoint = keypoints[0] # store this single point.. as the last.. 
+
+                else:
+                    single_keypoint_match_count = 0
+                    last_single_keypoint = None     
+
+
+                if len(keypoints) == 1 and settle_counter <= 0 and single_keypoint_match_count >= 3:  
+                    print("got 1 kp, 3+ in a row processing cycle logic")
+                    print("spkm: %d "% single_keypoint_match_count)
+                    single_keypoint_match_count = 0 # reset counter,,, 
+                    
                     settle_counter = 40 # set settle counter 
                     ball_x_position = keypoints[0].pt[0]
                     ball_region = 0
@@ -382,6 +410,7 @@ if __name__ == "__main__":
                         # need to move the slide... 
                         print("ball has moved to region  %d " % ball_region)
                         pg.gotoRegion(ball_region) 
+                        capture_image = True
                         current_slide_region = ball_region
                         settle_counter = 80
                         
@@ -399,18 +428,30 @@ if __name__ == "__main__":
             
             # Draw detected blobs as red circles.
             # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle corresponds to the size of blob
+            
+            im_with_keypoints = cv2.drawKeypoints(cropped, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS) 
+            im_with_keypoints = cv2.line(im_with_keypoints, (r0_start, 10), (r0_start, 40), (0, 255, 0), thickness=1)
+            im_with_keypoints = cv2.line(im_with_keypoints, (r1_start, 10), (r1_start, 40), (0, 255, 0), thickness=1)
+            im_with_keypoints = cv2.line(im_with_keypoints, (r2_start, 10), (r2_start, 40), (0, 255, 0), thickness=1)
+            im_with_keypoints = cv2.line(im_with_keypoints, (r2_end, 10), (r2_end, 40), (0, 255, 0), thickness=1)
+
+  
             if HEADLESS == False:
-                im_with_keypoints = cv2.drawKeypoints(cropped, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-                
-                im_with_keypoints = cv2.line(im_with_keypoints, (r0_start, 10), (r0_start, 40), (0, 255, 0), thickness=1)
-                im_with_keypoints = cv2.line(im_with_keypoints, (r1_start, 10), (r1_start, 40), (0, 255, 0), thickness=1)
-                im_with_keypoints = cv2.line(im_with_keypoints, (r2_start, 10), (r2_start, 40), (0, 255, 0), thickness=1)
-                im_with_keypoints = cv2.line(im_with_keypoints, (r2_end, 10), (r2_end, 40), (0, 255, 0), thickness=1)
-               
-                
                 cv2.imshow("Keypoints", im_with_keypoints)   
-              #   cv2.imshow("Keypoints", im_with_keypoints)    # Show keypoints
-        
+    
+            if capture_image == True:  
+                capture_img_interval = 0
+                cv2.imwrite('/home/pi/A_localGit/FlightScopeSlider/Configurator/public/images/calimage1.jpg', im_with_keypoints)
+  
+            capture_img_interval = capture_img_interval + 1
+            if capture_img_interval > 750:
+                capture_img_interval = 0
+                cv2.imwrite('/home/pi/A_localGit/FlightScopeSlider/Configurator/public/images/calimage2.jpg', im_with_keypoints)
+  
+
+
+
+
             key = cv2.waitKey(1) & 0xFF
             # if the 'q' key is pressed, stop the loop
             if key == ord("q"):

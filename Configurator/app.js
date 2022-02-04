@@ -43,7 +43,7 @@ var service = require('./controllers/service.js');
 service.init();
 
 if (process.arch == "arm") {
-  service.runchildproc();
+  //service.runchildproc();
 }
 
 console.log("system arch: " + process.arch);

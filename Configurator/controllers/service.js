@@ -24,7 +24,7 @@ var service = module.exports = {
 
        
        // py = spawn('/home/pi/.virtualenvs/cv/bin/python', ['/home/pi/A_localGit/FlightScopeEyeball/golf_blob.py'],)
-        py = spawn(process.env.SCOPE_PYTHON_PATH, [process.env.SCOPE_PYTHON_SCRIPT],)
+        py = spawn( process.env.SCOPE_PYTHON_PATH, [process.env.SCOPE_PYTHON_SCRIPT],)
 
         
         py.stdout.on('data', function(data) {
@@ -58,8 +58,8 @@ var service = module.exports = {
          fs.writeFileSync('../config.json', stdata);
          currentconfig = data;
 
-         py.stdin.write("boooger message");
-        console.log("sent python proc a message")
+        // py.stdin.write("boooger message");
+        //console.log("sent python proc a message")
          return currentconfig;
      }
 }
